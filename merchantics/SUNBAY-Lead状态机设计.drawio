@@ -1,0 +1,122 @@
+<mxGraphModel>
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <mxCell id="s1" value="New Lead" style="rounded=1;fillColor=#d0ebff;strokeColor=#1971c2;strokeWidth=2;fontStyle=1;fontSize=13;fontColor=#1971c2;" vertex="1" parent="1">
+      <mxGeometry x="280" y="20" width="160" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="s2" value="Info Collecting" style="rounded=1;fillColor=#d0ebff;strokeColor=#1971c2;strokeWidth=2;fontStyle=1;fontSize=13;fontColor=#1971c2;" vertex="1" parent="1">
+      <mxGeometry x="280" y="100" width="160" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="s3" value="Pending Info" style="rounded=1;fillColor=#fff4e6;strokeColor=#e67700;strokeWidth=2;fontStyle=1;fontSize=13;fontColor=#e67700;" vertex="1" parent="1">
+      <mxGeometry x="540" y="130" width="150" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="s4" value="Documents Uploaded" style="rounded=1;fillColor=#d0ebff;strokeColor=#1971c2;strokeWidth=2;fontStyle=1;fontSize=13;fontColor=#1971c2;" vertex="1" parent="1">
+      <mxGeometry x="280" y="185" width="160" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="s5" value="Ready for Boarding" style="rounded=1;fillColor=#d8f5a2;strokeColor=#2f9e44;strokeWidth=3;fontStyle=1;fontSize=13;fontColor=#2f9e44;" vertex="1" parent="1">
+      <mxGeometry x="260" y="275" width="200" height="45" as="geometry"/>
+    </mxCell>
+    <mxCell id="s5n" value="Trigger: Auto Boarding" style="text;fontSize=11;fontColor=#2f9e44;fontStyle=2;align=center;" vertex="1" parent="1">
+      <mxGeometry x="290" y="320" width="140" height="18" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="s6" value="Boarding Submitted" style="rounded=1;fillColor=#e5dbff;strokeColor=#5f3dc4;strokeWidth=2;fontStyle=1;fontSize=13;fontColor=#5f3dc4;" vertex="1" parent="1">
+      <mxGeometry x="280" y="380" width="160" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="s7" value="Pending Signature" style="rounded=1;fillColor=#e5dbff;strokeColor=#5f3dc4;strokeWidth=2;fontStyle=1;fontSize=13;fontColor=#5f3dc4;" vertex="1" parent="1">
+      <mxGeometry x="280" y="465" width="160" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="s8" value="Under Review" style="rounded=1;fillColor=#e5dbff;strokeColor=#5f3dc4;strokeWidth=2;fontStyle=1;fontSize=13;fontColor=#5f3dc4;" vertex="1" parent="1">
+      <mxGeometry x="280" y="550" width="160" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="s9" value="Approved" style="rounded=1;fillColor=#b2f2bb;strokeColor=#2f9e44;strokeWidth=2;fontStyle=1;fontSize=13;fontColor=#2f9e44;" vertex="1" parent="1">
+      <mxGeometry x="120" y="640" width="130" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="s10" value="Active Merchant" style="rounded=1;fillColor=#63e6be;strokeColor=#087f5b;strokeWidth=3;fontStyle=1;fontSize=13;fontColor=#087f5b;" vertex="1" parent="1">
+      <mxGeometry x="120" y="720" width="130" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="s11" value="Declined" style="rounded=1;fillColor=#ffe3e3;strokeColor=#c92a2a;strokeWidth=2;fontStyle=1;fontSize=13;fontColor=#c92a2a;" vertex="1" parent="1">
+      <mxGeometry x="470" y="640" width="130" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="s12" value="Closed / Retry" style="rounded=1;fillColor=#f1f3f5;strokeColor=#868e96;strokeWidth=1;fontStyle=0;fontSize=12;fontColor=#868e96;" vertex="1" parent="1">
+      <mxGeometry x="470" y="720" width="130" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="s13" value="Need More Info" style="rounded=1;fillColor=#fff4e6;strokeColor=#e67700;strokeWidth=2;fontStyle=1;fontSize=13;fontColor=#e67700;" vertex="1" parent="1">
+      <mxGeometry x="540" y="550" width="150" height="40" as="geometry"/>
+    </mxCell>
+
+    <!-- Edges -->
+    <mxCell id="a1" style="endArrow=classic;strokeColor=#495057;strokeWidth=2;" edge="1" parent="1" source="s1" target="s2">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="a2" value="Incomplete info" style="endArrow=classic;strokeColor=#e67700;strokeWidth=1;dashed=1;fontSize=11;fontColor=#e67700;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="s2" target="s3">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="a3" value="Info completed" style="endArrow=classic;strokeColor=#2f9e44;strokeWidth=1;dashed=1;fontSize=11;fontColor=#2f9e44;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="s3" target="s2">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="a4" style="endArrow=classic;strokeColor=#495057;strokeWidth=2;" edge="1" parent="1" source="s2" target="s4">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="a5" value="Missing docs" style="endArrow=classic;strokeColor=#e67700;strokeWidth=1;dashed=1;fontSize=11;fontColor=#e67700;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="s4" target="s3">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="a6" style="endArrow=classic;strokeColor=#495057;strokeWidth=2;" edge="1" parent="1" source="s4" target="s5">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="a7" value="Submit to&#xa;CoPilot Boarding API" style="endArrow=classic;strokeColor=#495057;strokeWidth=2;fontSize=10;fontColor=#868e96;align=left;" edge="1" parent="1" source="s5" target="s6">
+      <mxGeometry x="0.2" relative="1" as="geometry"><mxPoint as="offset" x="10"/></mxGeometry>
+    </mxCell>
+
+    <mxCell id="a8" value="CoPilot sends MPA&#xa;for digital signing" style="endArrow=classic;strokeColor=#495057;strokeWidth=2;fontSize=10;fontColor=#868e96;align=left;" edge="1" parent="1" source="s6" target="s7">
+      <mxGeometry x="0.2" relative="1" as="geometry"><mxPoint as="offset" x="10"/></mxGeometry>
+    </mxCell>
+
+    <mxCell id="a9" value="MPA signed&#xa;Enter underwriting" style="endArrow=classic;strokeColor=#495057;strokeWidth=2;fontSize=10;fontColor=#868e96;align=left;" edge="1" parent="1" source="s7" target="s8">
+      <mxGeometry x="0.2" relative="1" as="geometry"><mxPoint as="offset" x="10"/></mxGeometry>
+    </mxCell>
+
+    <mxCell id="a10" value="boarding.approved" style="endArrow=classic;strokeColor=#2f9e44;strokeWidth=2;fontSize=11;fontColor=#2f9e44;" edge="1" parent="1" source="s8" target="s9">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="a11" style="endArrow=classic;strokeColor=#087f5b;strokeWidth=2;" edge="1" parent="1" source="s9" target="s10">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="a12" value="boarding.declined" style="endArrow=classic;strokeColor=#c92a2a;strokeWidth=2;fontSize=11;fontColor=#c92a2a;" edge="1" parent="1" source="s8" target="s11">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="a13" style="endArrow=classic;strokeColor=#868e96;strokeWidth=1;dashed=1;" edge="1" parent="1" source="s11" target="s12">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="a14" value="boarding.updated:&#xa;need_info" style="endArrow=classic;strokeColor=#e67700;strokeWidth=2;fontSize=11;fontColor=#e67700;" edge="1" parent="1" source="s8" target="s13">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="a15" value="Back to Pending Info" style="endArrow=classic;strokeColor=#e67700;strokeWidth=1;dashed=1;fontSize=10;fontColor=#e67700;edgeStyle=orthogonalEdgeStyle;curved=1;" edge="1" parent="1" source="s13" target="s3">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
