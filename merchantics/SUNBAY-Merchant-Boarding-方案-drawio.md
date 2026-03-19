@@ -33,7 +33,7 @@
 
 | 维度 | 内容 |
 |------|------|
-| 核心产品/系统 | IRIS CRM（Merchantics）、SUNBAY OnBoarding Service（新建）、Processors（TSYS / Elavon / Fiserv-CardConnect） |
+| 核心产品/系统 | IRIS CRM（Merchantics）、OnBoarding Service Middleware（新建）、Processors（TSYS / Elavon / Fiserv-CardConnect） |
 | 终端/客户端类型 | Web 端（IRIS CRM 界面）、API（中间件服务） |
 | 业务渠道/方式 | ISO/代理商线上商户入驻、销售团队 CRM 操作 |
 
@@ -124,11 +124,11 @@
 **关键数据流：**
 
 ```
-① Lead 创建/更新 → IRIS CRM 订阅商户事件 → SUNBAY OnBoarding Service
-② SUNBAY OnBoarding Service → Field Mapper → Validator → Boarding Service
+① Lead 创建/更新 → IRIS CRM 订阅商户事件 → OnBoarding Service Middleware
+② OnBoarding Service Middleware → Field Mapper → Validator → Boarding Service
 ③ Boarding Service → Processor（TSYS / Elavon / Fiserv-CardConnect）
 ④ Fiserv 返回关键数据 MID / TID
-⑤ SUNBAY OnBoarding Service → 同步 Processor 商户数据至 IRIS CRM（回写状态/MID/TID）
+⑤ OnBoarding Service Middleware → 同步 Processor 商户数据至 IRIS CRM（回写状态/MID/TID）
 ```
 
 ### 3.2 开发项明细

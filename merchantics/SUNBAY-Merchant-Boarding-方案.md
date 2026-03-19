@@ -23,7 +23,7 @@
 
 ### 改造/建设目标
 
-由 SUNBAY 为客户构建 IRIS CRM 与 CardPointe 之间的自动化商户入驻中间件系统（SUNBAY OnBoarding Service），实现：
+由 SUNBAY 为客户构建 IRIS CRM 与 CardPointe 之间的自动化商户入驻中间件系统（OnBoarding Service Middleware），实现：
 1. 从 IRIS CRM 自动采集商户申请数据并提交至 CardPointe Boarding
 2. 入驻审批状态自动同步回 IRIS CRM
 3. 全流程可追踪、可审计
@@ -34,7 +34,7 @@
 
 | 维度 | 内容 |
 |------|------|
-| 核心产品/系统 | IRIS CRM（Merchantics）、SUNBAY OnBoarding Service（新建）、Fiserv-CardConnect（当前阶段），架构预留 TSYS / Elavon 扩展 |
+| 核心产品/系统 | IRIS CRM（Merchantics）、OnBoarding Service Middleware（新建）、Fiserv-CardConnect（当前阶段），架构预留 TSYS / Elavon 扩展 |
 | 终端/客户端类型 | Web 端（IRIS CRM 界面）、API（中间件服务） |
 | 业务渠道/方式 | ISO/代理商线上商户入驻、销售团队 CRM 操作 |
 
@@ -122,8 +122,8 @@
                                 Subscribe              
                                Merchant Events         
   ┌──────────┐    ┌──────────┐ ──────────────▶ ┌─────────────────────┐
-  │  Import  │───▶│ IRIS CRM │                 │      SUNBAY         │
-  │ Merchant │    │          │ ◀────────────── │  OnBoarding Service │
+  │  Import  │───▶│ IRIS CRM │                 │  OnBoarding Service │
+  │ Merchant │    │          │ ◀────────────── │     Middleware      │
   └──────────┘    └──────────┘  Sync Merchant  │                     │
                                     Data       │                     │
                                                │                     │     ┌──────────────────┐
@@ -141,11 +141,11 @@
 **关键数据流（当前阶段 — Fiserv CardConnect）：**
 
 ```
-① Lead 创建/更新 → IRIS CRM 订阅商户事件 → SUNBAY OnBoarding Service
-② SUNBAY OnBoarding Service → Field Mapper → Validator → Boarding Service
+① Lead 创建/更新 → IRIS CRM 订阅商户事件 → OnBoarding Service Middleware
+② OnBoarding Service Middleware → Field Mapper → Validator → Boarding Service
 ③ Boarding Service → CardPointe CoPilot Boarding API
 ④ Fiserv 返回关键数据 MID / TID
-⑤ SUNBAY OnBoarding Service → 同步商户数据至 IRIS CRM（回写状态/MID/TID）
+⑤ OnBoarding Service Middleware → 同步商户数据至 IRIS CRM（回写状态/MID/TID）
 ```
 
 ### 3.2 模块概览
@@ -157,9 +157,9 @@
 | # | Module | 核心职责 |
 |---|--------|----------|
 | 1 | IRIS CRM 配置 | Lead 自定义字段、Webhook 订阅、KYC 文档上传 |
-| 2 | SUNBAY OnBoarding Service — Core | Webhook Receiver、Field Mapper、Data Validator、数据库 & 安全 |
-| 3 | SUNBAY OnBoarding Service — Processor Routing | Fiserv-CardConnect CoPilot Boarding API 对接（架构预留 TSYS/Elavon 扩展） |
-| 4 | SUNBAY OnBoarding Service — Sync & Reliability | 状态回写、Retry Queue、定时轮询兜底 |
+| 2 | OnBoarding Service Middleware — Core | Webhook Receiver、Field Mapper、Data Validator、数据库 & 安全 |
+| 3 | OnBoarding Service Middleware — Processor Routing | Fiserv-CardConnect CoPilot Boarding API 对接（架构预留 TSYS/Elavon 扩展） |
+| 4 | OnBoarding Service Middleware — Sync & Reliability | 状态回写、Retry Queue、定时轮询兜底 |
 | 5 | 集成测试 & UAT | 全链路测试、异常场景、性能测试、用户验收 |
 | 6 | E-Signature 集成（可选） | IRIS CRM E-Signature 协议/费率变更签名 |
 
@@ -331,7 +331,7 @@
 
 ### 3.5 接口设计
 
-#### 3.5.1 SUNBAY OnBoarding Service 暴露接口
+#### 3.5.1 OnBoarding Service Middleware 暴露接口
 
 | Method | Path | 说明 |
 |--------|------|------|
@@ -447,7 +447,7 @@ Documents Uploaded ──(缺少文档)────┘
   ▼
 Ready for Boarding ★ 触发自动入驻
   │
-  │ (SUNBAY OnBoarding Service 提交 CoPilot Boarding API)
+  │ (OnBoarding Service Middleware 提交 CoPilot Boarding API)
   ▼
 Boarding Submitted
   │
@@ -524,7 +524,7 @@ Under Review
 
 ---
 
-> 文档版本：v1.3 | 编制日期：2026-03-19 | 编制人：SUNBAY 技术团队 | 更新说明：统一架构为 SUNBAY OnBoarding Service；当前阶段 Fiserv-CardConnect，架构预留 TSYS/Elavon 扩展；开发项合并为 6 个 Module，总工时调整为 33 人天；技术实现方案与 Module 对齐
+> 文档版本：v1.3 | 编制日期：2026-03-19 | 编制人：SUNBAY 技术团队 | 更新说明：统一架构为 OnBoarding Service Middleware；当前阶段 Fiserv-CardConnect，架构预留 TSYS/Elavon 扩展；开发项合并为 6 个 Module，总工时调整为 33 人天；技术实现方案与 Module 对齐
 
 ---
 

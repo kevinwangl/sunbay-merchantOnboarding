@@ -8,7 +8,7 @@
 
 ## 1. Introduction
 
-This document outlines the scope, deliverables, timeline, and terms for the Merchant Boarding Automation project. SUNBAY will design, develop, and deploy an automated middleware system (SUNBAY OnBoarding Service) that integrates IRIS CRM (Merchantics instance) with Fiserv CardPointe CoPilot to streamline the merchant onboarding process. The architecture is designed to support future expansion to additional processors (TSYS, Elavon, etc.).
+This document outlines the scope, deliverables, timeline, and terms for the Merchant Boarding Automation project. SUNBAY will design, develop, and deploy an automated middleware system (OnBoarding Service Middleware) that integrates IRIS CRM (Merchantics instance) with Fiserv CardPointe CoPilot to streamline the merchant onboarding process. The architecture is designed to support future expansion to additional processors (TSYS, Elavon, etc.).
 
 ---
 
@@ -46,7 +46,7 @@ The system connects the following components:
 |---|---|
 | **Import Merchant** | Merchant data intake entry point |
 | **IRIS CRM** | Central hub — manages leads, subscribes merchant events to OnBoarding Service |
-| **SUNBAY OnBoarding Service** | Middleware that routes boarding requests to downstream processors; syncs processor merchant data back to IRIS CRM |
+| **OnBoarding Service Middleware** | Middleware that routes boarding requests to downstream processors; syncs processor merchant data back to IRIS CRM |
 | **TSYS** | Processor — TSYS platform *(future expansion)* |
 | **Elavon** | Processor — Elavon platform *(future expansion)* |
 | **Fiserv** | Processor — CardConnect platform, routes to Omaha / Nashville / North, returns MID / TID |
@@ -60,10 +60,10 @@ The system connects the following components:
 | # | Module | Description | Est. Effort |
 |---|---|---|---|
 | 1 | **IRIS CRM Configuration** | - Create ~30 standardized boarding fields with tab grouping (Basic Info / Bank Info / Business Info / Boarding Status)<br>- Configure lead status workflow rules<br>- Set up webhook subscriptions (`lead.status.updated`, `lead.document.uploaded`)<br>- Enable KYC document upload | 4 days |
-| 2 | **SUNBAY OnBoarding Service — Core** | **Webhook Receiver:**<br>- Receive IRIS CRM merchant event subscriptions<br>- Signature verification & idempotent processing<br>- Event dispatching to corresponding handlers<br><br>**Field Mapper:**<br>- Configurable JSON-based mapping rules (IRIS CRM fields → CardPointe boarding fields, extensible to other Processors)<br>- Built-in format converters: dates, currency, addresses, state codes<br>- Mapping rule version management<br><br>**Data Validator:**<br>- Required field checks<br>- Format validation: EIN, ABA routing number, zip code<br>- Business rule checks: monthly volume range, MCC validity<br>- Validation failures auto-written back to IRIS CRM as Lead Notes | 10 days |
-| 3 | **SUNBAY OnBoarding Service — Processor Routing** | - Route merchant applications to Fiserv-CardConnect (current phase)<br>- Architecture supports future expansion to TSYS / Elavon<br>- Submit via CardPointe CoPilot Boarding API<br>- Request / response logging & error code mapping<br>- On success, write back `boarding_request_id` to IRIS CRM<br>- Fiserv returns key data: MID / TID | 6 days |
-| 4 | **SUNBAY OnBoarding Service — Sync & Reliability** | **Sync Service:**<br>- Process CardPointe webhook callbacks (approval / decline / updates)<br>- Sync merchant data back to IRIS CRM (lead status, MID/TID, approval date, custom fields, Lead Notes)<br><br>**Retry Queue:**<br>- Exponential backoff retry: 1min → 5min → 15min (max 3 attempts)<br>- Dead-letter queue for unresolved failures<br>- Scheduled polling every 15 minutes as webhook fallback<br>- Exception alerts for operations team | 8 days |
-| 5 | **Integration Testing & UAT** | - End-to-end testing: IRIS CRM → SUNBAY OnBoarding Service → Processors<br>- Webhook delivery / retry testing<br>- Exception scenario testing: timeout, decline, duplicates<br>- Performance testing<br>- UAT support | 5 days |
+| 2 | **OnBoarding Service Middleware — Core** | **Webhook Receiver:**<br>- Receive IRIS CRM merchant event subscriptions<br>- Signature verification & idempotent processing<br>- Event dispatching to corresponding handlers<br><br>**Field Mapper:**<br>- Configurable JSON-based mapping rules (IRIS CRM fields → CardPointe boarding fields, extensible to other Processors)<br>- Built-in format converters: dates, currency, addresses, state codes<br>- Mapping rule version management<br><br>**Data Validator:**<br>- Required field checks<br>- Format validation: EIN, ABA routing number, zip code<br>- Business rule checks: monthly volume range, MCC validity<br>- Validation failures auto-written back to IRIS CRM as Lead Notes | 10 days |
+| 3 | **OnBoarding Service Middleware — Processor Routing** | - Route merchant applications to Fiserv-CardConnect (current phase)<br>- Architecture supports future expansion to TSYS / Elavon<br>- Submit via CardPointe CoPilot Boarding API<br>- Request / response logging & error code mapping<br>- On success, write back `boarding_request_id` to IRIS CRM<br>- Fiserv returns key data: MID / TID | 6 days |
+| 4 | **OnBoarding Service Middleware — Sync & Reliability** | **Sync Service:**<br>- Process CardPointe webhook callbacks (approval / decline / updates)<br>- Sync merchant data back to IRIS CRM (lead status, MID/TID, approval date, custom fields, Lead Notes)<br><br>**Retry Queue:**<br>- Exponential backoff retry: 1min → 5min → 15min (max 3 attempts)<br>- Dead-letter queue for unresolved failures<br>- Scheduled polling every 15 minutes as webhook fallback<br>- Exception alerts for operations team | 8 days |
+| 5 | **Integration Testing & UAT** | - End-to-end testing: IRIS CRM → OnBoarding Service Middleware → Processors<br>- Webhook delivery / retry testing<br>- Exception scenario testing: timeout, decline, duplicates<br>- Performance testing<br>- UAT support | 5 days |
 | 6 | **E-Signature Integration** *(optional)* | - Agreement / rate change signing via IRIS CRM E-Signature API<br>- Auto-fill PDF templates, generate signing link, send to merchant<br>- Not part of standard boarding flow | 2 days |
 | | | **Total (excluding optional)** | **33 days** |
 
