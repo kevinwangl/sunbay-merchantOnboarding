@@ -497,15 +497,6 @@ Under Review
 
 **关键路径**：IRIS CRM 配置 → Core（Webhook/Mapper/Validator）→ Routing（Boarding Service）→ Sync → 集成测试
 
-### 4.3.1 版本发布计划
-
-| 时间节点 | 版本号 | 发布内容 |
-|----------|--------|---------|
-| W4 结束 | v0.1.0-alpha | IRIS CRM 配置完成 + OnBoarding Service Core（Webhook Receiver + Field Mapper + Validator） |
-| W6 结束 | v0.5.0-beta | Processor Routing（CardPointe API 对接）+ Sync & Reliability（完整入驻流程可跑通，沙箱环境） |
-| W7 结束 | v0.9.0-rc | 集成测试通过，全链路验证完成 |
-| W8 结束 | v1.0.0 | UAT 通过，生产环境上线 |
-
 ---
 
 ## 5. 前置依赖与待确认事项
