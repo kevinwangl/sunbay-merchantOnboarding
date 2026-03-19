@@ -13,12 +13,10 @@ Your sales team currently onboards merchants by manually entering data in IRIS C
 SUNBAY will build an **automated middleware** between IRIS CRM and CardPointe that handles the entire merchant boarding lifecycle:
 
 ```
-IRIS CRM ──(auto)──▶ Middleware ──(auto)──▶ CardPointe CoPilot
-                         │                        │
-                         │    MPA signing ◀────── │
-                         │    Underwriting ──────▶ │
-                         │                        │
-CRM status updated ◀────┘◀── Result callback ────┘
+IRIS CRM ──(Subscribe Merchant Events)──▶ SUNBAY OnBoarding Service ──▶ Processors
+                                                    │                    (TSYS / Elavon / Fiserv)
+                                                    │                         │
+CRM status updated ◀── Sync Processor Data ────────┘◀── MID/TID ────────────┘
 ```
 
 Sales reps only work in IRIS CRM. Set status to "Ready for Boarding" — everything else is automated.

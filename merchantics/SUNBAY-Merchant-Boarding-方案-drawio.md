@@ -33,7 +33,7 @@
 
 | 维度 | 内容 |
 |------|------|
-| 核心产品/系统 | IRIS CRM（Merchantics）、CardPointe Gateway、Boarding Middleware（新建） |
+| 核心产品/系统 | IRIS CRM（Merchantics）、SUNBAY OnBoarding Service（新建）、Processors（TSYS / Elavon / Fiserv-CardConnect） |
 | 终端/客户端类型 | Web 端（IRIS CRM 界面）、API（中间件服务） |
 | 业务渠道/方式 | ISO/代理商线上商户入驻、销售团队 CRM 操作 |
 
@@ -124,14 +124,11 @@
 **关键数据流：**
 
 ```
-① Lead 创建/更新 → IRIS CRM Webhook → Middleware Webhook Receiver
-② Middleware → IRIS CRM API（拉取完整 Lead 数据 + 文档）
-③ Middleware → Field Mapper → Validator → Boarding Service
-④ Boarding Service → CardPointe CoPilot Boarding API（创建申请）
-⑤ CoPilot → 商户（发送 MPA 数字签名链接）
-⑥ 商户签名完成 → CoPilot 核保审批
-⑦ CardPointe Webhook → Middleware（审批结果回调，事件名称待确认）
-⑧ Middleware Sync Service → IRIS CRM API（回写状态/MID/备注）
+① Lead 创建/更新 → IRIS CRM 订阅商户事件 → SUNBAY OnBoarding Service
+② SUNBAY OnBoarding Service → Field Mapper → Validator → Boarding Service
+③ Boarding Service → Processor（TSYS / Elavon / Fiserv-CardConnect）
+④ Fiserv 返回关键数据 MID / TID
+⑤ SUNBAY OnBoarding Service → 同步 Processor 商户数据至 IRIS CRM（回写状态/MID/TID）
 ```
 
 ### 3.2 开发项明细

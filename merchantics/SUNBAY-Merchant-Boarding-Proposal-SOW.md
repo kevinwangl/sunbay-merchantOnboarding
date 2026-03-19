@@ -8,7 +8,7 @@
 
 ## 1. Introduction
 
-This document outlines the scope, deliverables, timeline, and terms for the Merchant Boarding Automation project. SUNBAY will design, develop, and deploy an automated middleware system that integrates IRIS CRM (Merchantics instance) with Fiserv CardPointe CoPilot to streamline the merchant onboarding process.
+This document outlines the scope, deliverables, timeline, and terms for the Merchant Boarding Automation project. SUNBAY will design, develop, and deploy an automated middleware system (SUNBAY OnBoarding Service) that integrates IRIS CRM (Merchantics instance) with Fiserv CardPointe CoPilot to streamline the merchant onboarding process. The architecture is designed to support future expansion to additional processors (TSYS, Elavon, etc.).
 
 ---
 
@@ -34,32 +34,22 @@ An automated middleware that:
 4. Provides full process tracking and audit trail
 5. Reduces merchant onboarding cycle from 2-3 days to under 4 hours
 
-### 2.3 Process Flow
+### 2.3 System Architecture
 
-> 📎 Draw.io source: [SUNBAY-Merchant-Boarding-Process-Flow.drawio](./SUNBAY-Merchant-Boarding-Process-Flow.drawio)
+> 📎 Draw.io source: [SUNBAY-Merchant-Boarding-Architecture.drawio](./SUNBAY-Merchant-Boarding-Architecture.drawio)
 
-![Process Flow](./SUNBAY-Merchant-Boarding-Process-Flow.png)
+![System Architecture](./SUNBAY-Merchant-Boarding-Architecture.png)
 
-```
-Sales Rep              Middleware               Merchant              CardPointe CoPilot
-   │                      │                        │                      │
-   │  Fill info in CRM    │                        │                      │
-   │  Status → "Ready     │                        │                      │
-   │  for Boarding"       │                        │                      │
-   │ ─ ─(Webhook)─ ─ ─ ─▶│  Validate & map        │                      │
-   │                      │  fields                │                      │
-   │                      │─────── Submit ─────────────────────────────── ▶│
-   │                      │                        │                      │  Generate MPA
-   │                      │                        │   MPA sign email      │
-   │                      │                        │◀─────────────────────│
-   │                      │                        │   E-sign online       │
-   │                      │                        │─────────────────────▶│
-   │                      │                        │                      │  Underwriting
-   │                      │                        │                      │  (auto / manual)
-   │                      │  Webhook callback      │                      │
-   │◀── Status sync ──────│◀──────────────────────────────────────────────│
-   │  CRM updated         │                        │   Email notification  │
-```
+The system connects the following components:
+
+| Component | Role |
+|---|---|
+| **Import Merchant** | Merchant data intake entry point |
+| **IRIS CRM** | Central hub — manages leads, subscribes merchant events to OnBoarding Service |
+| **SUNBAY OnBoarding Service** | Middleware that routes boarding requests to downstream processors; syncs processor merchant data back to IRIS CRM |
+| **TSYS** | Processor — TSYS platform *(future expansion)* |
+| **Elavon** | Processor — Elavon platform *(future expansion)* |
+| **Fiserv** | Processor — CardConnect platform, routes to Omaha / Nashville / North, returns MID / TID |
 
 ---
 
@@ -67,20 +57,16 @@ Sales Rep              Middleware               Merchant              CardPointe
 
 ### 3.1 Deliverables
 
-| # | Deliverable | Description | Est. Effort |
+| # | Module | Description | Est. Effort |
 |---|---|---|---|
-| 1 | **IRIS CRM Configuration** | Create ~30 standardized boarding fields with tab grouping (Basic Info / Bank Info / Business Info / Boarding Status). Configure lead status workflow rules. Set up webhook subscriptions (lead.status.updated, lead.document.uploaded). Enable KYC document upload (business license, ID, bank statement, void check). | 4 days |
-| 2 | **Data Validation Engine** | Auto-validate merchant data before submission: required field checks, format validation (EIN, ABA routing number, zip code), business rule checks (monthly volume range, MCC validity). Validation failures auto-written back to IRIS CRM as Lead Notes. | 3 days |
-| 3 | **Field Mapping & Conversion** | Configurable mapping rules (JSON-based) from IRIS CRM Lead fields to CardPointe Boarding fields. Built-in format converters for dates, currency amounts, addresses, state codes. Mapping rule version management. | 4 days |
-| 4 | **Automated Boarding Submission** | Submit merchant applications to CardPointe CoPilot Boarding API. Request/response logging. Error code mapping. On success, write back boarding_request_id to IRIS CRM. | 5 days |
-| 5 | **MPA Signing & Underwriting Support** | CoPilot generates MPA from submitted data → sends e-signature link to merchant → merchant signs online → enters underwriting (auto-approval in minutes or manual review within 24 hours). Bank info verified via GIACT + Plaid. ISO brand customization supported on MPA templates. | — *(CoPilot platform capability)* |
-| 6 | **Bi-directional Status Sync** | Process CardPointe webhook callbacks (approval/decline/updates). Update IRIS CRM: lead status, MID, approval date, custom fields. Add Lead Notes with approval details or decline reasons. Auto-transition lead status. Trigger merchant notifications. | 4 days |
-| 7 | **Reliability & Error Handling** | Exponential backoff retry (1min / 5min / 15min, max 3 attempts). Dead-letter queue for unresolved failures. Scheduled polling every 15 minutes as webhook fallback with consistency checks. Exception alerts for operations team to intervene manually. | 5 days |
-| 8 | **Security & Audit** | Sensitive data (bank account, tax ID) masked in storage. Full operation logs for all requests, responses, and status changes. Webhook signature verification (HMAC). Exception alerts on API failures and status inconsistencies. Database design & migration scripts. | 4 days |
-| 9 | **Webhook Receiver** | Receive and process webhooks from both IRIS CRM and CardPointe. Signature verification, idempotent processing, event dispatching to corresponding handlers. | 5 days |
-| 10 | **Integration Testing & UAT** | End-to-end testing (IRIS CRM → Middleware → CardPointe full flow). Webhook delivery/retry testing. Exception scenario testing (timeout, decline, duplicates). Performance testing. UAT support. | 5 days |
-| 11 | **E-Signature Integration** *(optional)* | Agreement/rate change signing via IRIS CRM E-Signature API. Auto-fill PDF templates with Lead data, generate signing link, send to merchant. Update Lead status/notes on completion. Not part of standard boarding flow — for agent agreements, rate changes, contract renewals. | 2 days |
-| | | **Total (excluding optional)** | **39 days** |
+| 1 | **IRIS CRM Configuration** | - Create ~30 standardized boarding fields with tab grouping (Basic Info / Bank Info / Business Info / Boarding Status)<br>- Configure lead status workflow rules<br>- Set up webhook subscriptions (`lead.status.updated`, `lead.document.uploaded`)<br>- Enable KYC document upload | 4 days |
+| 2 | **SUNBAY OnBoarding Service — Core** | **Webhook Receiver:**<br>- Receive IRIS CRM merchant event subscriptions<br>- Signature verification & idempotent processing<br>- Event dispatching to corresponding handlers<br><br>**Field Mapper:**<br>- Configurable JSON-based mapping rules (IRIS CRM fields → CardPointe boarding fields, extensible to other Processors)<br>- Built-in format converters: dates, currency, addresses, state codes<br>- Mapping rule version management<br><br>**Data Validator:**<br>- Required field checks<br>- Format validation: EIN, ABA routing number, zip code<br>- Business rule checks: monthly volume range, MCC validity<br>- Validation failures auto-written back to IRIS CRM as Lead Notes | 10 days |
+| 3 | **SUNBAY OnBoarding Service — Processor Routing** | - Route merchant applications to Fiserv-CardConnect (current phase)<br>- Architecture supports future expansion to TSYS / Elavon<br>- Submit via CardPointe CoPilot Boarding API<br>- Request / response logging & error code mapping<br>- On success, write back `boarding_request_id` to IRIS CRM<br>- Fiserv returns key data: MID / TID | 6 days |
+| 4 | **SUNBAY OnBoarding Service — Sync & Reliability** | **Sync Service:**<br>- Process CardPointe webhook callbacks (approval / decline / updates)<br>- Sync merchant data back to IRIS CRM (lead status, MID/TID, approval date, custom fields, Lead Notes)<br><br>**Retry Queue:**<br>- Exponential backoff retry: 1min → 5min → 15min (max 3 attempts)<br>- Dead-letter queue for unresolved failures<br>- Scheduled polling every 15 minutes as webhook fallback<br>- Exception alerts for operations team | 8 days |
+| 5 | **Integration Testing & UAT** | - End-to-end testing: IRIS CRM → SUNBAY OnBoarding Service → Processors<br>- Webhook delivery / retry testing<br>- Exception scenario testing: timeout, decline, duplicates<br>- Performance testing<br>- UAT support | 5 days |
+| 6 | **E-Signature Integration** *(optional)* | - Agreement / rate change signing via IRIS CRM E-Signature API<br>- Auto-fill PDF templates, generate signing link, send to merchant<br>- Not part of standard boarding flow | 2 days |
+| | | **Total (excluding optional)** | **33 days** |
+
 
 ### 3.2 Out of Scope
 
@@ -104,7 +90,7 @@ Pure ISO agent agreements / commission agreements only involve IRIS CRM record u
 | Phase | Timeline | Deliverables |
 |---|---|---|
 | **Foundation** | Week 1-3 | IRIS CRM field configuration, database design, webhook receiver, field mapper |
-| **Integration** | Week 4-6 | Data validator, boarding service (CardPointe API), sync service, retry queue, polling fallback |
+| **Integration** | Week 4-6 | Data validator, boarding service (CardPointe CoPilot API), sync service, retry queue, polling fallback |
 | **Launch** | Week 7-8 | End-to-end integration testing, exception scenario testing, UAT, go-live |
 
 ### 4.2 Milestones
@@ -156,8 +142,8 @@ Pure ISO agent agreements / commission agreements only involve IRIS CRM record u
 
 | Item | Cost |
 |---|---|
-| Merchant Boarding Automation (Deliverables #1-10) | $[TBD] |
-| E-Signature Integration — optional (Deliverable #11) | $[TBD] |
+| Merchant Boarding Automation (Deliverables #1-5) | $[TBD] |
+| E-Signature Integration — optional (Deliverable #6) | $[TBD] |
 | **Total** | **$[TBD]** |
 
 *Payment terms: [TBD — e.g., 30% upfront, 40% at M2, 30% at go-live]*

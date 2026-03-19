@@ -23,17 +23,18 @@
 
 ### 改造/建设目标
 
-由 SUNBAY 为客户构建 IRIS CRM 与 CardPointe 之间的自动化商户入驻中间件系统，实现：
+由 SUNBAY 为客户构建 IRIS CRM 与 CardPointe 之间的自动化商户入驻中间件系统（SUNBAY OnBoarding Service），实现：
 1. 从 IRIS CRM 自动采集商户申请数据并提交至 CardPointe Boarding
 2. 入驻审批状态自动同步回 IRIS CRM
 3. 全流程可追踪、可审计
 4. 商户入驻周期从 2-3 天缩短至 4 小时内
+5. 架构支持未来扩展至其他 Processor（TSYS、Elavon 等）
 
 ### 产品/系统范围
 
 | 维度 | 内容 |
 |------|------|
-| 核心产品/系统 | IRIS CRM（Merchantics）、CardPointe Gateway、Boarding Middleware（新建） |
+| 核心产品/系统 | IRIS CRM（Merchantics）、SUNBAY OnBoarding Service（新建）、Fiserv-CardConnect（当前阶段），架构预留 TSYS / Elavon 扩展 |
 | 终端/客户端类型 | Web 端（IRIS CRM 界面）、API（中间件服务） |
 | 业务渠道/方式 | ISO/代理商线上商户入驻、销售团队 CRM 操作 |
 
@@ -118,104 +119,58 @@
 ### 3.1 整体方案架构图
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        前端展示层                                    │
-│  ┌──────────────────┐                                               │
-│  │  IRIS CRM Web UI │  销售人员操作界面（Lead管理/文档上传/签名）       │
-│  └────────┬─────────┘                                               │
-├───────────┼─────────────────────────────────────────────────────────┤
-│           │            业务服务层                                     │
-│           ▼                                                          │
-│  ┌──────────────────┐    Webhook     ┌──────────────────────────┐   │
-│  │   IRIS CRM API   │──────────────▶│  Boarding Middleware      │   │
-│  │ (Open API v1.6.4)│◀──────────────│  (SUNBAY 开发交付)        │   │
-│  │                   │   REST API    │                          │   │
-│  │  - Lead API       │               │  ┌────────────────────┐  │   │
-│  │  - Merchant API   │               │  │ Webhook Receiver   │  │   │
-│  │  - E-Signature    │               │  │ Field Mapper       │  │   │
-│  │  - Helpdesk API   │               │  │ Validator          │  │   │
-│  │  - Subscriptions  │               │  │ Boarding Service   │  │   │
-│  └──────────────────┘               │  │ Sync Service       │  │   │
-│                                      │  │ Retry Queue        │  │   │
-│                                      │  └────────────────────┘  │   │
-│                                      └────────────┬─────────────┘   │
-├───────────────────────────────────────────────────┼─────────────────┤
-│                        外部对接层                   │                 │
-│                                      ┌────────────▼─────────────┐   │
-│                                      │  CardPointe Gateway      │   │
-│                                      │  - Gateway API           │   │
-│                                      │  - CoPilot Boarding      │   │
-│                                      │  - Webhook Callbacks     │   │
-│                                      └──────────────────────────┘   │
-├─────────────────────────────────────────────────────────────────────┤
-│                        基础设施层                                     │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────────┐    │
-│  │  Aurora  │  │  Redis   │  │  Docker  │  │ CloudWatch/Logs  │    │
-│  │(数据存储) │  │(消息队列) │  │(容器部署) │  │  (监控告警)       │    │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────────────┘    │
-└─────────────────────────────────────────────────────────────────────┘
+                                Subscribe              
+                               Merchant Events         
+  ┌──────────┐    ┌──────────┐ ──────────────▶ ┌─────────────────────┐
+  │  Import  │───▶│ IRIS CRM │                 │      SUNBAY         │
+  │ Merchant │    │          │ ◀────────────── │  OnBoarding Service │
+  └──────────┘    └──────────┘  Sync Merchant  │                     │
+                                    Data       │                     │
+                                               │                     │     ┌──────────────────┐
+                                               │                     │────▶│ Fiserv           │
+                                               └─────────────────────┘     │  CardConnect     │
+                                                      │                    │  Returns MID/TID │
+                                               ┌──────┴──────┐            │  ┌─────────────┐ │
+                                               │ Future      │            │  │ Omaha       │ │
+                                               │ Expansion:  │            │  │ Nashville   │ │
+                                               │ TSYS/Elavon │            │  │ North       │ │
+                                               └─────────────┘            │  └─────────────┘ │
+                                                                           └──────────────────┘
 ```
 
-**关键数据流：**
+**关键数据流（当前阶段 — Fiserv CardConnect）：**
 
 ```
-① Lead 创建/更新 → IRIS CRM Webhook → Middleware Webhook Receiver
-② Middleware → IRIS CRM API（拉取完整 Lead 数据 + 文档）
-③ Middleware → Field Mapper → Validator → Boarding Service
-④ Boarding Service → CardPointe CoPilot Boarding API（创建申请）
-⑤ CoPilot → 商户（发送 MPA 数字签名链接）
-⑥ 商户签名完成 → CoPilot 核保审批
-⑦ CardPointe Webhook → Middleware（审批结果回调，事件名称待确认）
-⑧ Middleware Sync Service → IRIS CRM API（回写状态/MID/备注）
+① Lead 创建/更新 → IRIS CRM 订阅商户事件 → SUNBAY OnBoarding Service
+② SUNBAY OnBoarding Service → Field Mapper → Validator → Boarding Service
+③ Boarding Service → CardPointe CoPilot Boarding API
+④ Fiserv 返回关键数据 MID / TID
+⑤ SUNBAY OnBoarding Service → 同步商户数据至 IRIS CRM（回写状态/MID/TID）
 ```
 
-### 3.2 开发项明细
+### 3.2 模块概览
 
-| Items（开发项） | Sub Items（子项/涉及系统） | Desc（具体内容） | UI/UX 设计需求 | 研发工作量（人天） |
-|----------------|--------------------------|----------------|---------------|-----------------|
-| 1. IRIS CRM 配置 | Lead 自定义字段 | - 创建 Boarding 所需全部自定义字段（约 30 个）<br>- 配置字段分组（Tab）：基本信息/银行信息/业务信息/入驻状态<br>- 配置 Lead 状态流转规则 | 无 | 3 |
-| | Webhook 订阅 | - 配置 `lead.status.updated` 订阅<br>- 配置 `lead.document.uploaded` 订阅<br>⚠️ 事件类型精确命名待核实 IRIS CRM Subscriptions API 文档 | 无 | 1 |
-| | E-Signature 模板（可选） | - 创建协议/费率变更签名模板<br>- 配置 Application Field Mapping<br>- 不属于标准 Boarding 流程 | 有，1页 | 2 |
-| 2. Webhook Receiver | 中间件服务 | - 接收 IRIS CRM Webhook（lead.status.updated 等）<br>- 接收 CardPointe Webhook（审批通过/拒绝/更新，事件名称待确认）<br>- 签名验证/幂等处理<br>- 事件分发到对应 Handler | 无 | 5 |
-| 3. Field Mapper | 中间件服务 | - IRIS CRM Lead 字段 → CardPointe Boarding 字段映射<br>- 可配置化映射规则（JSON 配置文件）<br>- 支持字段格式转换（日期/金额/地址等）<br>- 映射规则版本管理 | 无 | 4 |
-| 4. Data Validator | 中间件服务 | - 必填项校验<br>- 格式校验（EIN/SSN、银行路由号、邮编等）<br>- 业务规则校验（月交易量范围、MCC 有效性等）<br>- 校验失败自动回写 IRIS CRM Lead Note | 无 | 3 |
-| 5. Boarding Service | 中间件服务 | - 调用 CardPointe CoPilot Boarding API 提交商户申请<br>- 请求/响应日志记录<br>- 异常处理与错误码映射<br>- 提交成功后回写 boarding_request_id 到 IRIS CRM | 无 | 5 |
-| 6. Sync Service | 中间件服务 | - 处理 CardPointe 审批回调<br>- 更新 IRIS CRM Lead 状态/自定义字段<br>- 添加 Lead Note（审批结果/MID/拒绝原因）<br>- 触发邮件/短信通知（调用 IRIS CRM 模板） | 无 | 4 |
-| 7. Retry Queue | 中间件服务 | - Redis 基础的异步任务队列<br>- 指数退避重试策略（1min/5min/15min）<br>- 死信队列（超过重试次数）<br>- 异常告警通知 | 无 | 3 |
-| 8. 定时轮询兜底 | 中间件服务 | - 每 15 分钟查询 pending 状态的 boarding 请求<br>- 主动查询 CardPointe 申请状态<br>- 与 Webhook 结果做一致性校验 | 无 | 2 |
-| 9. 数据库设计 | Aurora | - boarding_requests 表（核心映射表）<br>- webhook_events 表（事件日志）<br>- field_mappings 表（映射配置）<br>- audit_logs 表（审计日志）<br>- 数据迁移脚本 | 无 | 2 |
-| 10. 集成测试 | 全系统 | - IRIS CRM → Middleware → CardPointe 全链路测试<br>- Webhook 投递/重试测试<br>- 异常场景测试（超时/拒绝/重复）<br>- 性能测试（并发入驻） | 无 | 5 |
-| | | **Total** | **1页** | **39 人天** |
+> 模块划分、工作量评估及交付物详见 **SUNBAY-Merchant-Boarding-Proposal-SOW.md**。
 
-#### 开发项技术实现方案与风险点
+本技术方案涉及以下模块，后续章节围绕其技术实现展开：
 
-**1. IRIS CRM 配置**
-- 技术实现：通过 IRIS CRM Lead Fields API（POST /leads/fields）批量创建自定义字段；通过 Subscriptions API（POST /subscriptions）配置 Webhook
-- 风险点：IRIS CRM 自定义字段数量上限需确认；Webhook URL 需公网可访问
+| # | Module | 核心职责 |
+|---|--------|----------|
+| 1 | IRIS CRM 配置 | Lead 自定义字段、Webhook 订阅、KYC 文档上传 |
+| 2 | SUNBAY OnBoarding Service — Core | Webhook Receiver、Field Mapper、Data Validator、数据库 & 安全 |
+| 3 | SUNBAY OnBoarding Service — Processor Routing | Fiserv-CardConnect CoPilot Boarding API 对接（架构预留 TSYS/Elavon 扩展） |
+| 4 | SUNBAY OnBoarding Service — Sync & Reliability | 状态回写、Retry Queue、定时轮询兜底 |
+| 5 | 集成测试 & UAT | 全链路测试、异常场景、性能测试、用户验收 |
+| 6 | E-Signature 集成（可选） | IRIS CRM E-Signature 协议/费率变更签名 |
 
-**2. Webhook Receiver**
-- 技术实现：Node.js/Express 或 Python/FastAPI 实现 HTTP 端点；使用 HMAC-SHA256 验证 Webhook 签名；Redis 存储已处理事件 ID 实现幂等
-- 风险点：IRIS CRM Webhook 签名验证机制需确认文档；公网暴露端点需做安全加固
+#### 技术风险点
 
-**3. Field Mapper**
-- 技术实现：JSON Schema 定义映射规则，支持热加载；内置常用转换器（日期格式、金额单位、地址拆分合并）
-- 风险点：CardPointe Boarding API 字段规格可能随版本变化；部分字段可能需要人工补充（如 MCC 选择）
-
-**4. Data Validator**
-- 技术实现：基于 JSON Schema + 自定义校验规则引擎；EIN 格式校验（XX-XXXXXXX）、ABA 路由号校验（9 位 + checksum）
-- 风险点：不同处理器对字段要求可能不同
-
-**5. Boarding Service**
-- 技术实现：封装 CardPointe CoPilot Boarding API Client；请求签名/认证处理；响应码映射为业务状态
-- 风险点：⚠️ CardPointe 商户入驻通过 CoPilot 平台完成，**需与 Fiserv 确认是否提供可程序化调用的 REST API** [附录 #6]，若不支持则需评估替代方案（如 CoPilot Web 自动化）；沙箱环境可用性待确认；API 限流策略需确认
-
-**6. Sync Service**
-- 技术实现：解析 CardPointe 回调 payload，提取 MID/状态/原因；调用 IRIS CRM API 批量更新（PATCH /leads/{leadId} + POST /leads/{leadId}/notes）
-- 风险点：IRIS CRM API 限流 120 次/分钟，批量同步时需控制速率
-
-**7. Retry Queue**
-- 技术实现：Redis + Bull Queue（Node.js）或 Celery（Python）；配置指数退避：attempt 1 → 1min, attempt 2 → 5min, attempt 3 → 15min
-- 风险点：Redis 持久化配置需确保任务不丢失
+| 模块 | 风险 | 影响 |
+|------|------|------|
+| Module 1 | IRIS CRM 自定义字段数量上限需确认；Webhook URL 需公网可访问 | 字段不足则需分批创建 |
+| Module 2 | IRIS CRM Webhook 签名验证机制需确认；CardPointe 字段规格可能随版本变化 | 影响安全校验和映射准确性 |
+| Module 3 | ⚠️ 需与 Fiserv 确认 CoPilot 是否提供可程序化调用的 REST API，若不支持需评估替代方案 | **关键阻塞风险** |
+| Module 4 | IRIS CRM API 限流 120 次/分钟；Redis 持久化需确保任务不丢失 | 批量同步需控制速率 |
 
 ---
 
@@ -252,7 +207,232 @@
 | — | boarding_status | String | — | 状态同步回写 |
 | — | boarding_date | Date | — | 审批通过日期回写 |
 
-### 3.4 Lead 状态机设计
+### 3.4 数据库设计
+
+#### 3.4.1 ER 关系图
+
+```
+┌──────────────────┐       ┌──────────────────┐
+│ boarding_requests │──1:N──│  webhook_events  │
+└────────┬─────────┘       └──────────────────┘
+         │
+         │ 1:N
+         ▼
+┌──────────────────┐       ┌──────────────────┐
+│   audit_logs     │       │  field_mappings   │
+└──────────────────┘       └──────────────────┘
+```
+
+#### 3.4.2 表结构定义
+
+**boarding_requests（核心业务表）**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| id | BIGINT AUTO_INCREMENT | PK | 主键 |
+| iris_lead_id | VARCHAR(64) | ✅ | IRIS CRM Lead ID |
+| processor | VARCHAR(32) | ✅ | 处理器标识：`fiserv_cardconnect` |
+| boarding_request_id | VARCHAR(128) | | CoPilot 返回的申请 ID |
+| mid | VARCHAR(64) | | 审批通过后的 Merchant ID |
+| tid | VARCHAR(64) | | Terminal ID |
+| status | VARCHAR(32) | ✅ | 状态枚举（见 3.4.3） |
+| request_payload | JSON | | 提交请求体（脱敏后） |
+| response_payload | JSON | | 响应体 |
+| error_code | VARCHAR(32) | | 错误码 |
+| error_message | TEXT | | 错误详情 |
+| retry_count | INT DEFAULT 0 | | 已重试次数 |
+| next_retry_at | DATETIME | | 下次重试时间 |
+| submitted_at | DATETIME | | 提交时间 |
+| approved_at | DATETIME | | 审批通过时间 |
+| created_at | DATETIME | ✅ | 创建时间 |
+| updated_at | DATETIME | ✅ | 更新时间 |
+
+索引：
+- `UNIQUE idx_iris_lead` ON (iris_lead_id, processor)
+- `idx_status` ON (status)
+- `idx_next_retry` ON (status, next_retry_at) — 重试队列查询
+- `idx_submitted` ON (submitted_at) — 定时轮询查询
+
+**webhook_events（事件日志表）**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| id | BIGINT AUTO_INCREMENT | PK | 主键 |
+| event_id | VARCHAR(128) | ✅ | 事件唯一 ID（幂等键） |
+| source | VARCHAR(32) | ✅ | 来源：`iris_crm` / `cardpointe` |
+| event_type | VARCHAR(64) | ✅ | 事件类型 |
+| payload | JSON | ✅ | 原始 payload |
+| status | VARCHAR(16) | ✅ | `received` / `processing` / `processed` / `failed` |
+| error_message | TEXT | | 处理失败原因 |
+| processed_at | DATETIME | | 处理完成时间 |
+| created_at | DATETIME | ✅ | 接收时间 |
+
+索引：
+- `UNIQUE idx_event_id` ON (event_id) — 幂等去重
+- `idx_source_type` ON (source, event_type, created_at)
+
+**field_mappings（映射配置表）**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| id | BIGINT AUTO_INCREMENT | PK | 主键 |
+| processor | VARCHAR(32) | ✅ | 处理器标识 |
+| version | VARCHAR(16) | ✅ | 映射版本号 |
+| mapping_config | JSON | ✅ | 映射规则 JSON |
+| is_active | BOOLEAN DEFAULT true | | 是否启用 |
+| created_at | DATETIME | ✅ | 创建时间 |
+
+索引：
+- `UNIQUE idx_processor_version` ON (processor, version)
+
+**audit_logs（审计日志表）**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| id | BIGINT AUTO_INCREMENT | PK | 主键 |
+| boarding_request_id | BIGINT | | 关联 boarding_requests.id |
+| action | VARCHAR(64) | ✅ | 操作类型 |
+| actor | VARCHAR(32) | ✅ | 操作者：`system` / `webhook` / `scheduler` |
+| detail | JSON | | 操作详情 |
+| created_at | DATETIME | ✅ | 操作时间 |
+
+索引：
+- `idx_boarding_request` ON (boarding_request_id, created_at)
+
+#### 3.4.3 状态枚举
+
+**boarding_requests.status：**
+
+| 状态值 | 说明 | 流转来源 |
+|--------|------|----------|
+| `pending_validation` | 待校验 | 接收 Webhook 后创建 |
+| `validation_failed` | 校验失败 | Validator 校验不通过 |
+| `pending_submission` | 待提交 | 校验通过，等待提交 |
+| `submitted` | 已提交 | CoPilot API 调用成功 |
+| `pending_signature` | 待签名 | CoPilot 已发送 MPA |
+| `under_review` | 核保审批中 | 商户签名完成 |
+| `approved` | 审批通过 | CoPilot 回调 |
+| `declined` | 审批拒绝 | CoPilot 回调 |
+| `need_info` | 需补充资料 | CoPilot 回调 |
+| `submission_failed` | 提交失败 | API 调用失败 |
+| `retry_pending` | 等待重试 | 失败后进入重试队列 |
+| `dead_letter` | 死信 | 超过最大重试次数 |
+
+#### 3.4.4 数据生命周期
+
+| 表 | 保留策略 |
+|----|----------|
+| boarding_requests | 永久保留（业务核心数据） |
+| webhook_events | 90 天后归档至冷存储 |
+| audit_logs | 1 年后归档至冷存储 |
+| field_mappings | 永久保留（配置数据） |
+
+---
+
+### 3.5 接口设计
+
+#### 3.5.1 SUNBAY OnBoarding Service 暴露接口
+
+| Method | Path | 说明 |
+|--------|------|------|
+| POST | `/webhooks/iris-crm` | 接收 IRIS CRM Webhook |
+| POST | `/webhooks/cardpointe` | 接收 CardPointe Webhook |
+| GET | `/health` | 健康检查 |
+| GET | `/api/boarding-requests/:id` | 查询入驻申请状态（运营用） |
+| POST | `/api/boarding-requests/:id/retry` | 手动触发重试（运营用） |
+
+#### 3.5.2 调用外部接口清单
+
+| 目标系统 | 接口 | 用途 |
+|----------|------|------|
+| IRIS CRM | `GET /leads/{leadId}` | 拉取 Lead 完整数据 |
+| IRIS CRM | `PATCH /leads/{leadId}` | 回写状态/MID/TID |
+| IRIS CRM | `POST /leads/{leadId}/notes` | 添加 Lead Note |
+| IRIS CRM | `GET /leads/{leadId}/documents` | 获取 KYC 文档 |
+| CardPointe CoPilot | Boarding API（待确认） | 提交商户入驻申请 |
+| CardPointe CoPilot | Status API（待确认） | 轮询申请状态 |
+
+---
+
+### 3.6 错误码设计
+
+| 错误码 | 分类 | 说明 | 处理策略 |
+|--------|------|------|----------|
+| `V001` | 校验错误 | 必填字段缺失 | 不可重试，回写 Lead Note |
+| `V002` | 校验错误 | 字段格式不合法 | 不可重试，回写 Lead Note |
+| `V003` | 校验错误 | 业务规则不满足 | 不可重试，回写 Lead Note |
+| `M001` | 映射错误 | 映射配置缺失 | 不可重试，告警运营 |
+| `B001` | 提交错误 | CoPilot API 超时 | 可重试 |
+| `B002` | 提交错误 | CoPilot API 返回 4xx | 不可重试，回写错误详情 |
+| `B003` | 提交错误 | CoPilot API 返回 5xx | 可重试 |
+| `B004` | 提交错误 | 认证失败 | 不可重试，告警运营 |
+| `S001` | 同步错误 | IRIS CRM API 超时 | 可重试 |
+| `S002` | 同步错误 | IRIS CRM API 限流 | 可重试（延迟） |
+| `S003` | 同步错误 | Lead 状态不一致 | 告警运营，人工介入 |
+
+**异常分级：**
+
+| 级别 | 处理策略 | 示例 |
+|------|----------|------|
+| L1 — 可重试 | 自动进入 Retry Queue | B001, B003, S001, S002 |
+| L2 — 不可重试 | 回写错误至 IRIS CRM，标记失败 | V001-V003, B002 |
+| L3 — 需人工介入 | 进入死信队列 + 告警运营 | M001, B004, S003 |
+
+---
+
+### 3.7 配置管理
+
+#### 环境变量清单
+
+| 变量名 | 说明 | 示例 |
+|--------|------|------|
+| `IRIS_CRM_API_BASE_URL` | IRIS CRM API 地址 | `https://merchantics.iriscrm.com/api/v1` |
+| `IRIS_CRM_API_TOKEN` | IRIS CRM API Token | `***` |
+| `CARDPOINTE_API_BASE_URL` | CoPilot Boarding API 地址 | 待确认 |
+| `CARDPOINTE_API_KEY` | CoPilot API 认证密钥 | `***` |
+| `CARDPOINTE_WEBHOOK_SECRET` | Webhook 签名密钥 | `***` |
+| `DATABASE_URL` | Aurora 连接串 | `mysql://...` |
+| `REDIS_URL` | Redis 连接串 | `redis://...` |
+| `RETRY_MAX_ATTEMPTS` | 最大重试次数 | `3` |
+| `RETRY_DELAYS_MS` | 重试间隔（毫秒） | `60000,300000,900000` |
+| `POLLING_INTERVAL_MS` | 轮询间隔 | `900000` |
+| `LOG_LEVEL` | 日志级别 | `info` |
+
+#### Field Mapper 配置结构示例
+
+```json
+{
+  "processor": "fiserv_cardconnect",
+  "version": "1.0.0",
+  "mappings": [
+    {
+      "source": "company_name",
+      "target": "legal_name",
+      "type": "string",
+      "required": true,
+      "transform": null
+    },
+    {
+      "source": "state",
+      "target": "business_state",
+      "type": "string",
+      "required": true,
+      "transform": "state_to_code"
+    },
+    {
+      "source": "sic_code",
+      "target": "mcc",
+      "type": "string",
+      "required": true,
+      "transform": "sic_to_mcc"
+    }
+  ]
+}
+```
+
+---
+
+### 3.8 Lead 状态机设计
 
 ```
 New Lead
@@ -267,7 +447,7 @@ Documents Uploaded ──(缺少文档)────┘
   ▼
 Ready for Boarding ★ 触发自动入驻
   │
-  │ (Middleware 提交 CoPilot Boarding API)
+  │ (SUNBAY OnBoarding Service 提交 CoPilot Boarding API)
   ▼
 Boarding Submitted
   │
@@ -295,12 +475,8 @@ Under Review
 - 目标版本号：SUNBAY Merchant Boarding v1.0.0
 - UI/UX 设计稿确认状态：
   - IRIS CRM Lead 字段布局（Tab 分组）：需确认
-  - 协议/费率变更签名模板（可选）：需确认
 
-### 4.2 项目研发工作量评估
-
-- 总工作量：39 人天
-- 团队配置：
+### 4.2 研发团队配置
 
 | 角色 | 人数 | 职责 |
 |------|------|------|
@@ -313,26 +489,20 @@ Under Review
 
 | Items | Description | W1 | W2 | W3 | W4 | W5 | W6 | W7 | W8 |
 |-------|-------------|----|----|----|----|----|----|----|----|
-| IRIS CRM 配置 | 自定义字段/Webhook/E-Signature | ■ | ■ | | | | | | |
-| 数据库设计 | 表结构/迁移脚本 | ■ | | | | | | | |
-| Webhook Receiver | 接收/验签/幂等/分发 | | ■ | ■ | | | | | |
-| Field Mapper | 字段映射/转换/配置化 | | ■ | ■ | | | | | |
-| Data Validator | 校验规则引擎 | | | ■ | ■ | | | | |
-| Boarding Service | CardPointe API 对接 | | | | ■ | ■ | | | |
-| Sync Service | 状态回写/通知 | | | | | ■ | ■ | | |
-| Retry Queue | 重试/死信/告警 | | | | | ■ | | | |
-| 定时轮询兜底 | 状态一致性校验 | | | | | | ■ | | |
-| 集成测试 | 全链路/异常/性能 | | | | | | | ■ | ■ |
-| UAT & 上线 | 用户验收/灰度发布 | | | | | | | | ■ |
+| IRIS CRM 配置 | 自定义字段/Webhook/KYC | ■ | ■ | | | | | | |
+| OnBoarding Service — Core | Webhook Receiver/Field Mapper/Validator/DB 设计 | | ■ | ■ | ■ | | | | |
+| OnBoarding Service — Routing | CardPointe CoPilot Boarding API 对接 | | | | ■ | ■ | | | |
+| OnBoarding Service — Sync | 状态回写/Retry Queue/定时轮询 | | | | | ■ | ■ | | |
+| 集成测试 & UAT | 全链路/异常/性能/用户验收 | | | | | | | ■ | ■ |
 
-**关键路径**：IRIS CRM 配置 → Webhook Receiver → Field Mapper → Boarding Service → Sync Service → 集成测试
+**关键路径**：IRIS CRM 配置 → Core（Webhook/Mapper/Validator）→ Routing（Boarding Service）→ Sync → 集成测试
 
 ### 4.3.1 版本发布计划
 
 | 时间节点 | 版本号 | 发布内容 |
 |----------|--------|---------|
-| W4 结束 | v0.1.0-alpha | IRIS CRM 字段配置完成 + Webhook Receiver + Field Mapper（可接收事件并完成字段映射） |
-| W6 结束 | v0.5.0-beta | Boarding Service + Sync Service + Retry Queue（完整入驻流程可跑通，沙箱环境） |
+| W4 结束 | v0.1.0-alpha | IRIS CRM 配置完成 + OnBoarding Service Core（Webhook Receiver + Field Mapper + Validator） |
+| W6 结束 | v0.5.0-beta | Processor Routing（CardPointe API 对接）+ Sync & Reliability（完整入驻流程可跑通，沙箱环境） |
 | W7 结束 | v0.9.0-rc | 集成测试通过，全链路验证完成 |
 | W8 结束 | v1.0.0 | UAT 通过，生产环境上线 |
 
@@ -354,7 +524,7 @@ Under Review
 
 ---
 
-> 文档版本：v1.2 | 编制日期：2026-03-16 | 编制人：SUNBAY 技术团队 | 更新说明：基于 API 真实性验证修正 CardPointe Boarding API 及 Webhook 事件命名；补充 CoPilot MPA 签名流程；补充引用依据
+> 文档版本：v1.3 | 编制日期：2026-03-19 | 编制人：SUNBAY 技术团队 | 更新说明：统一架构为 SUNBAY OnBoarding Service；当前阶段 Fiserv-CardConnect，架构预留 TSYS/Elavon 扩展；开发项合并为 6 个 Module，总工时调整为 33 人天；技术实现方案与 Module 对齐
 
 ---
 
